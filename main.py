@@ -45,9 +45,12 @@ if st.session_state['chat_open']:  # Check if the chat is open
 
     # Define URLs to fetch content from
     urls = [
-        "https://ollama.com/",
-        "https://ollama.com/blog/windows-preview",
-        "https://ollama.com/blog/openai-compatibility",
+        "https://wordpress.com/",
+        "https://wordpress.org/download/",
+        "https://wordpress.org/",
+        "https://en.wikipedia.org/wiki/WordPress",
+        "https://apps.apple.com/us/app/wordpress-website-builder/id335703880",
+        "https://play.google.com/store/apps/details?id=org.wordpress.android&hl=en_IN&pli=1",
     ]  # List of URLs from which the chatbot will fetch content
 
     # Function to load content from a single URL
