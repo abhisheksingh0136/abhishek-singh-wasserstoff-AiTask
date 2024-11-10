@@ -1,0 +1,8 @@
+streamlit
+langchain_huggingface
+langchain_community
+faiss-cpu
+tiktoken
+langchainhub
+langchain-google-genai
+bs4
