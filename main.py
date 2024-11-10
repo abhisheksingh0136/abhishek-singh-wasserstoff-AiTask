@@ -13,14 +13,14 @@ import time  # Import time for time-related functions
 import datetime  # Import datetime to work with current date and time
 
 # Function to get a greeting based on the time of day
-def get_greeting():
-    current_hour = datetime.datetime.now().hour  # Get the current hour of the day
-    if current_hour < 12:  # Check if it's before noon
-        return "Good Morning!"  # Return "Good Morning!" if before noon
-    elif 12 <= current_hour < 18:  # Check if it's between noon and 6 PM
-        return "Good Afternoon!"  # Return "Good Afternoon!" if in the afternoon
-    else:  # Otherwise, it must be after 6 PM
-        return "Good Evening!"  # Return "Good Evening!" if after 6 PM
+# def get_greeting():
+#     current_hour = datetime.datetime.now().hour  # Get the current hour of the day
+#     if current_hour < 12:  # Check if it's before noon
+#         return "Good Morning!"  # Return "Good Morning!" if before noon
+#     elif 12 <= current_hour < 18:  # Check if it's between noon and 6 PM
+#         return "Good Afternoon!"  # Return "Good Afternoon!" if in the afternoon
+#     else:  # Otherwise, it must be after 6 PM
+#         return "Good Evening!"  # Return "Good Evening!" if after 6 PM
 
 # Configure the Streamlit page with a title and an icon
 st.set_page_config(page_title="Chatbot", page_icon="🔍")
@@ -36,7 +36,7 @@ if st.button("🤖 Chat with us"):  # Create a button to toggle chat UI
 # Show the full chat UI only if the chat is open
 if st.session_state['chat_open']:  # Check if the chat is open
     st.title("🤖 QueryServe 🤖")  # Display the chatbot title
-    st.subheader(get_greeting() + " How can I assist you today?")  # Display greeting based on time of day
+    st.subheader(" How can I assist you today?")  # Display 
     st.write("I can help you answer questions based on content from URLs. Just provide me with the API key and your query.")  # Instruction for the user
 
     # Input fields for API key and user query
