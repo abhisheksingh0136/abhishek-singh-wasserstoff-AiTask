@@ -112,6 +112,7 @@ if st.session_state['chat_open']:  # Check if the chat is open
                 st.write("🔄 Generating answer...")  # Notify the user that the answer is being generated
                 llm = ChatGoogleGenerativeAI(  # Initialize the Google Generative AI model
                     model="gemini-1.5-flash",  # Specify the model to use
+                    system_message="Always begin your response with an appropriate greeting based on the time of day. If the user explicitly asks for a greeting, respond with an appropriate wish.",
                     temperature=0,  # Set the temperature for the response (lower is more deterministic)
                     max_tokens=None,  # No limit on the number of tokens in the response
                     timeout=None,  # No timeout for the request
@@ -119,7 +120,11 @@ if st.session_state['chat_open']:  # Check if the chat is open
                 )
 
                 # Define the prompt template and create a LangChain chain
-                after_rag_template = """Answer the question based only on the following context: {context} Question: {question} """  # Define the prompt template
+                #after_rag_template = """Answer the question based only on the following context: {context} Question: {question} """  # Define the prompt template
+                after_rag_template = """Answer the question based only on the following context: {context} 
+                    First, greet the user appropriately based on the current time of day.
+                    Question: {question} 
+                    """
                 after_rag_prompt = ChatPromptTemplate.from_template(after_rag_template)  # Create the prompt from the template
                 after_rag_chain = ({"context": retriever, "question": RunnablePassthrough()} | after_rag_prompt | llm | StrOutputParser())  # Define the chain to process the query
 
