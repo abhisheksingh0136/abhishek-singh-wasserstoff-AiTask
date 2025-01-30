@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.text_splitter import CharacterTextSplitter  
 from langchain_google_genai import ChatGoogleGenerativeAI  
 import concurrent.futures  
-from langchain.memory import ConversationBufferMemory  # Import memory for chat history
+from langchain.memory import ConversationBufferMemory  
 
 # Set up Streamlit
 st.set_page_config(page_title="Chatbot", page_icon="🔍")
@@ -80,18 +80,28 @@ if st.session_state['chat_open']:
                 # Use memory buffer for conversation history
                 chat_history = st.session_state['memory'].load_memory_variables({})["chat_history"]
 
-                # Modified prompt with memory
-                chat_prompt_template = """Use the following chat history and document context (if available) to answer the question.
-                If no relevant context is found, use your own knowledge.
-                Chat History:
-                {chat_history}
+                # **New: Check if context is meaningful**
+                if len(context.strip()) > 50:  # If retrieved content is useful
+                    chat_prompt_template = """Use the following chat history and document context to answer the question.
+                    Chat History:
+                    {chat_history}
 
-                Document Context:
-                {context}
+                    Document Context:
+                    {context}
 
-                First, greet the user appropriately based on the current time of day.
-                Question: {question}
-                """
+                    First, greet the user appropriately based on the current time of day.
+                    Question: {question}
+                    """
+                else:  # **If no relevant content is found, use LLM knowledge**
+                    chat_prompt_template = """Use the following chat history and answer the question using your own knowledge. 
+                    Chat History:
+                    {chat_history}
+
+                    No relevant document context was found, so rely on your general knowledge.
+                    First, greet the user appropriately based on the current time of day.
+                    Question: {question}
+                    """
+
                 chat_prompt = ChatPromptTemplate.from_template(chat_prompt_template)  
                 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, max_tokens=None, timeout=None, max_retries=2)
 
