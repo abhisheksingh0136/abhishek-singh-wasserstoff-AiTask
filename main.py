@@ -89,14 +89,16 @@ if st.session_state['chat_open']:
                 Document Context:
                 {context}
 
-                First, greet the user appropriately based on the current time of day.
                 Question: {question}
                 """
                 chat_prompt = ChatPromptTemplate.from_template(chat_prompt_template)  
+
+                # Format the prompt and pass it to the model
+                formatted_prompt = chat_prompt.format(chat_history=chat_history, context=context, question=query)
                 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, max_tokens=None, timeout=None, max_retries=2)
 
                 # Process response
-                answer = chat_prompt.invoke({"chat_history": chat_history, "context": context, "question": query})  
+                answer = llm.invoke(formatted_prompt)  # Pass the formatted string directly to the model
                 st.success(f"Answer: {answer}")  
 
                 # Store interaction in memory
@@ -122,4 +124,4 @@ if st.session_state['chat_open']:
                                 st.experimental_rerun()  
 
             except Exception as e:  
-                st.error(f"An error occurred: {e}")  
+                st.error(f"An error occurred: {e}")
