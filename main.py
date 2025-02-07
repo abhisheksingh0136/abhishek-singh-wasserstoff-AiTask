@@ -115,18 +115,19 @@ if st.session_state.chat_open:
 
                 # Create chain for processing user input
                 after_rag_chain = (
-                    {"context": retriever, "question": RunnablePassthrough(), "chat_history": chat_history_text}
-                    | after_rag_prompt
-                    | ChatGoogleGenerativeAI(
-                        model="gemini-1.5-flash",
-                        system_message="Always begin with an appropriate greeting based on the time of day.",
-                        temperature=0,
-                        max_tokens=None,
-                        timeout=None,
-                        max_retries=2,
-                    )
-                    | StrOutputParser()
+                {"context": retriever, "question": RunnablePassthrough(), "chat_history": chat_history_text}
+                | after_rag_prompt
+                | ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash",
+                    system_message="Always begin with an appropriate greeting based on the time of day.",
+                    temperature=0,
+                    max_tokens=None,
+                    timeout=None,
+                    max_retries=2,
                 )
+                | StrOutputParser()
+            )
+
 
                 # Invoke the chain with user query
                 answer = after_rag_chain.invoke({"context": retriever, "question": query, "chat_history": chat_history_text})
