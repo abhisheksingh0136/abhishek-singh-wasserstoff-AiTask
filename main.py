@@ -125,11 +125,12 @@ if st.session_state["chat_open"]:
                 )
 
                 # Process query with memory
+                # Process query with memory
                 after_rag_chain = (
                     {
-                        "context": RunnablePassthrough().invoke(context),
-                        "question": RunnablePassthrough().invoke(query),
-                        "history": RunnablePassthrough().invoke(st.session_state["memory"].load_memory_variables({})),
+                        "context": context,  # Pass context directly as a string
+                        "question": query,  # Pass query directly as a string
+                        "history": st.session_state["memory"].load_memory_variables({}),  # Load memory
                     }
                     | after_rag_prompt
                     | llm
