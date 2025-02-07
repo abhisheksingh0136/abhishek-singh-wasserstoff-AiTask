@@ -1,40 +1,42 @@
-import os  
-import streamlit as st  
-from langchain_community.document_loaders import WebBaseLoader  
-from langchain.vectorstores import FAISS  
-from langchain_huggingface import HuggingFaceEmbeddings  
-from langchain_core.runnables import RunnablePassthrough  
-from langchain_core.output_parsers import StrOutputParser  
-from langchain_core.prompts import ChatPromptTemplate  
-from langchain.text_splitter import CharacterTextSplitter  
-from langchain_google_genai import ChatGoogleGenerativeAI  
-import concurrent.futures  
-from langchain.memory import ConversationBufferMemory  # Import memory for chat history
+import os
+import streamlit as st
+import concurrent.futures
+import time
+import datetime
+from langchain_community.document_loaders import WebBaseLoader
+from langchain.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.memory import ConversationBufferMemory
 
-# Set up Streamlit
+# Configure Streamlit page
 st.set_page_config(page_title="Chatbot", page_icon="🔍")
 
-# Initialize session state for chat memory
-if 'memory' not in st.session_state:
-    st.session_state['memory'] = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+# Initialize session state for chat and memory
+if "chat_open" not in st.session_state:
+    st.session_state["chat_open"] = False
+if "memory" not in st.session_state:
+    st.session_state["memory"] = ConversationBufferMemory(input_key="question", memory_key="history")
 
-# Initialize chat UI
-if 'chat_open' not in st.session_state:
-    st.session_state['chat_open'] = False
-
+# Toggle chat window
 if st.button("🤖 Chat with us"):
-    st.session_state['chat_open'] = not st.session_state['chat_open']
+    st.session_state["chat_open"] = not st.session_state["chat_open"]
 
-if st.session_state['chat_open']:
-    st.title("🤖 QueryServe 🤖")  
+# Show chat UI if opened
+if st.session_state["chat_open"]:
+    st.title("🤖 QueryServe 🤖")
     st.subheader("How can I assist you today?")
-    st.write("I can help you answer questions based on content from URLs. Just provide me with the API key and your query.")
+    st.write("I can answer questions based on URLs or general knowledge.")
 
     # Input fields
-    api_key = st.text_input("Enter your Google API Key", type="password")  
-    query = st.text_input("Ask a question")  
+    api_key = st.text_input("Enter your Google API Key", type="password")
+    query = st.text_input("Ask a question")
 
-    # Define URLs to fetch content from
+    # URLs for content retrieval
     urls = [
         "https://wordpress.com/",
         "https://wordpress.org/download/",
@@ -44,82 +46,102 @@ if st.session_state['chat_open']:
         "https://play.google.com/store/apps/details?id=org.wordpress.android&hl=en_IN&pli=1",
     ]
 
-    # Load content from URLs
+    # Function to load content from a URL
     def load_content(url):
-        return WebBaseLoader(url).load()  
+        return WebBaseLoader(url).load()
 
-    if st.button("Get Answer"):  
+    # Process query on button click
+    if st.button("Get Answer"):
         if not api_key.strip():
-            st.error("Please enter a valid Google API Key.")  
-        elif not query.strip():  
-            st.error("Please enter a query.")  
+            st.error("Please enter a valid Google API Key.")
+        elif not query.strip():
+            st.error("Please enter a query.")
         else:
             try:
-                os.environ["GOOGLE_API_KEY"] = api_key.strip()  
-                st.write("🔄 Loading content from URLs...")  
+                os.environ["GOOGLE_API_KEY"] = api_key.strip()
+                st.write("🔄 Loading content from URLs...")
 
+                # Load content from URLs in parallel
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    docs = list(executor.map(load_content, urls))  
+                    docs = list(executor.map(load_content, urls))
 
-                docs_list = [item for sublist in docs for item in sublist]  
-                text_splitter = CharacterTextSplitter.from_tiktoken_encoder(chunk_size=7500, chunk_overlap=100)  
-                doc_splits = text_splitter.split_documents(docs_list)  
+                # Flatten and split content
+                docs_list = [item for sublist in docs for item in sublist]
+                text_splitter = CharacterTextSplitter.from_tiktoken_encoder(chunk_size=7500, chunk_overlap=100)
+                doc_splits = text_splitter.split_documents(docs_list)
 
-                # Update FAISS index
-                embeddings_model = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')  
-                vectorstore = FAISS.from_documents(doc_splits, embeddings_model)  
-                retriever = vectorstore.as_retriever()  
+                # FAISS index handling
+                st.write("🔄 Updating FAISS index if needed...")
+                temp_faiss_index = None
+                last_updated_time = time.time()
 
-                # Retrieve documents
-                retrieved_docs = retriever.invoke(query)  
-                if retrieved_docs:
-                    context = "\n".join([doc.page_content for doc in retrieved_docs])  
+                def update_faiss_index(docs_splits, embeddings_model):
+                    global temp_faiss_index, last_updated_time
+                    if temp_faiss_index is not None and (time.time() - last_updated_time) < 3600:
+                        st.write("✅ FAISS index is up to date.")
+                        return temp_faiss_index
+
+                    st.write("🔄 Updating FAISS index...")
+                    vectorstore = FAISS.from_documents(docs_splits, embeddings_model)
+                    temp_faiss_index = vectorstore
+                    last_updated_time = time.time()
+                    return vectorstore
+
+                embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+                vectorstore = update_faiss_index(doc_splits, embeddings_model)
+
+                # Convert FAISS index to retriever
+                retriever = vectorstore.as_retriever()
+
+                # Retrieve relevant documents
+                retrieved_docs = retriever.invoke(query)
+                if retrieved_docs and any(doc.page_content.strip() for doc in retrieved_docs):
+                    context = "\n".join([doc.page_content for doc in retrieved_docs])
+                    response_source = "🔍 Based on retrieved documents."
                 else:
-                    context = ""  
+                    context = "No relevant documents found."
+                    response_source = "🧠 Answering based on general knowledge."
 
-                # Use memory buffer for conversation history
-                chat_history = st.session_state['memory'].load_memory_variables({})["chat_history"]
+                st.write(response_source)
 
-                # Modified prompt with memory
-                chat_prompt_template = """Use the following chat history and document context (if available) to answer the question.
-                If no relevant context is found, use your own knowledge.
-                Chat History:
-                {chat_history}
+                # Initialize LLM with memory
+                llm = ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash",
+                    system_message="Always begin your response with an appropriate greeting based on the time of day.",
+                    temperature=0,
+                    max_tokens=None,
+                    timeout=None,
+                    max_retries=2,
+                )
 
-                Document Context:
-                {context}
+                # Define prompt with memory support
+                after_rag_prompt = ChatPromptTemplate.from_template(
+                    """Answer the question based only on the following context: {context}
+                    First, greet the user appropriately based on the current time of day.
+                    Previous conversation history:
+                    {history}
+                    Question: {question}
+                    """
+                )
 
-                First, greet the user appropriately based on the current time of day.
-                Question: {question}
-                """
-                chat_prompt = ChatPromptTemplate.from_template(chat_prompt_template)  
-                llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, max_tokens=None, timeout=None, max_retries=2)
+                # Process query with memory
+                after_rag_chain = (
+                    {
+                        "context": RunnablePassthrough().invoke(context),
+                        "question": RunnablePassthrough().invoke(query),
+                        "history": RunnablePassthrough().invoke(st.session_state["memory"].load_memory_variables({})),
+                    }
+                    | after_rag_prompt
+                    | llm
+                    | StrOutputParser()
+                )
 
-                # Process response
-                answer = chat_prompt.invoke({"chat_history": chat_history, "context": context, "question": query})  
-                st.success(f"Answer: {answer}")  
+                # Get and display the answer
+                answer = after_rag_chain.invoke(query)
+                st.success(f"Answer: {answer}")
 
-                # Store interaction in memory
-                st.session_state['memory'].save_context({"input": query}, {"output": answer})
+                # Store query and answer in memory
+                st.session_state["memory"].save_context({"question": query}, {"answer": answer})
 
-                # Follow-up question generation
-                follow_up_prompt_template = """Based on the chat history and answer, suggest 3-5 follow-up questions.
-                Chat History:
-                {chat_history}
-                User Question: {question}
-                AI Answer: {answer}
-                """
-                follow_up_prompt = ChatPromptTemplate.from_template(follow_up_prompt_template)  
-                follow_up_chain = follow_up_prompt | llm | StrOutputParser()  
-                follow_up_questions = follow_up_chain.invoke({"chat_history": chat_history, "question": query, "answer": answer})  
-
-                if follow_up_questions:
-                    st.subheader("💡 Follow-up Questions:")
-                    for q in follow_up_questions.split("\n"):
-                        if q.strip():
-                            if st.button(q.strip()):  
-                                query = q.strip()  
-                                st.experimental_rerun()  
-
-            except Exception as e:  
-                st.error(f"An error occurred: {e}")  
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
