@@ -115,29 +115,28 @@ if st.session_state["chat_open"]:
                 )
 
                 # Define prompt with memory support
-                after_rag_prompt = ChatPromptTemplate.from_template(
-                    """Answer the question based only on the following context: {context}
+                # Define the prompt template for RAG and out-of-the-box questions
+                after_rag_template = """Answer the question based only on the following context: {context} 
                     First, greet the user appropriately based on the current time of day.
-                    Previous conversation history:
-                    {history}
                     Question: {question}
+                    If the question is not found in the context, provide an informative answer based on your knowledge.
                     """
-                )
-
-                # Process query with memory
-                # Process query with memory
+                
+                # Create a prompt from the template
+                after_rag_prompt = ChatPromptTemplate.from_template(after_rag_template)
+                
+                # Use retriever directly as a Runnable to fetch context dynamically
                 after_rag_chain = (
                     {
-                        "context": context,  # Pass context directly as a string
-                        "question": query,  # Pass query directly as a string
-                        "history": st.session_state["memory"].load_memory_variables({}),  # Load memory
+                        "context": retriever,  # Use retriever as a Runnable, NOT a string
+                        "question": RunnablePassthrough(),  # Keeps the question as-is
                     }
                     | after_rag_prompt
                     | llm
                     | StrOutputParser()
                 )
-
-                # Get and display the answer
+                
+                # Run the chain and display the result
                 answer = after_rag_chain.invoke(query)
                 st.success(f"Answer: {answer}")
 
