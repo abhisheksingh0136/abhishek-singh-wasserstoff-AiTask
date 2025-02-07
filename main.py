@@ -8,7 +8,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.memory import ConversationBufferMemory  # Importing the ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory  # Correct import
 import concurrent.futures
 import time
 import datetime
@@ -92,7 +92,7 @@ if st.session_state['chat_open']:
                 )
 
                 # Create the prompt to include conversation history from the memory buffer
-                chat_history = st.session_state['chat_memory'].buffer  # Retrieve chat history
+                chat_history = st.session_state['chat_memory'].messages  # Retrieve chat history
                 after_rag_template = f"""
                     Answer the question based only on the following context: {{context}} 
                     First, greet the user appropriately based on the current time of day.
@@ -110,9 +110,9 @@ if st.session_state['chat_open']:
 
                 st.success(f"Answer: {answer}")
 
-                # Store the conversation in memory buffer
-                st.session_state['chat_memory'].add_user_message(query)  # Add user query to memory
-                st.session_state['chat_memory'].add_ai_message(answer)  # Add bot response to memory
+                # Store the conversation in memory buffer using append method
+                st.session_state['chat_memory'].messages.append({"role": "user", "content": query})  # Add user query to memory
+                st.session_state['chat_memory'].messages.append({"role": "ai", "content": answer})  # Add bot response to memory
 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
